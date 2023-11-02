@@ -2,8 +2,6 @@ import tkinter as tk
 import time
 import random
 
-
-
 def contar_minas_alrededor(tablero, x, y):
     count = 0
     for i in range(max(0, x - 1), min(len(tablero), x + 2)):
@@ -12,21 +10,40 @@ def contar_minas_alrededor(tablero, x, y):
                 count += 1
     return count
 
-def revelar_celda(tablero, buttons, x, y):
-    if tablero[x][y] == '*':
-        print("¡Has encontrado una mina!")
-    else:
-        minas_cercanas = contar_minas_alrededor(tablero, x, y)
-        buttons[x][y].config(text=str(minas_cercanas))
+def revelar_celda(tablero, buttons, x, y, event):
+    if event == 'left':  # Si el evento es un clic izquierdo
+        if buttons[x][y]['text'] == "B":  # Verificar si hay una bandera
+            return  # No hacer nada si hay una bandera en la celda
+
+        if tablero[x][y] == '*':
+            print("¡Has encontrado una mina!")
+        else:
+            minas_cercanas = contar_minas_alrededor(tablero, x, y)
+            buttons[x][y].config(text=str(minas_cercanas))
+    elif event == 'right':  # Si el evento es un clic derecho
+        if buttons[x][y]['text'] == "X":  # Si la celda está sin revelar, coloca una bandera
+            buttons[x][y].config(text="B")
+        elif buttons[x][y]['text'] == "B":  # Si la celda tiene una bandera, quítala
+            buttons[x][y].config(text="X")
 
 def crear_botones_tablero(tablero, ventana):
     buttons = []
+    
+    def left_click_handler(event, x, y):
+        revelar_celda(tablero, buttons, x, y, 'left')
+    
+    def right_click_handler(event, x, y):
+        revelar_celda(tablero, buttons, x, y, 'right')
+    
     for i in range(len(tablero)):
         row = []
         for j in range(len(tablero[i])):
-            btn = tk.Button(ventana, width=3, height=1, command=lambda x=i, y=j: revelar_celda(tablero, buttons, x, y))
+            btn = tk.Button(ventana, width=3, height=1)
             btn.grid(row=i + 1, column=j, sticky="nsew")
             row.append(btn)
+            btn.bind('<Button-1>', lambda e, x=i, y=j: left_click_handler(e, x, y), add='+')
+            btn.bind('<Button-3>', lambda e, x=i, y=j: right_click_handler(e, x, y), add='+')
+
         buttons.append(row)
 
     # Configurar filas adicionales para dar espacio arriba del tablero
@@ -49,32 +66,36 @@ def crear_tablero(filas, columnas, minas):
 
     return tablero
 
+
+def actualizar_contador_banderas(label, cantidad_banderas):
+    label.config(text=f"Banderas: {cantidad_banderas}")
+
 def interfaz_tablero(tablero, board_window, filas, columnas, num_minas):
     # Contador de minas restantes
     contador_minas = tk.Label(board_window, text=f"Minas restantes: {num_minas}")
-    contador_minas.grid(row=0, column=0, columnspan=columnas)
+    contador_minas.grid(row=0, column=0, sticky="w", padx=5, pady=5)
 
     # Contador de banderas puestas
     banderas_puestas = 0  # Inicialmente no hay banderas puestas
-    contador_banderas = tk.Label(board_window, text={banderas_puestas})
-    contador_banderas.grid(row=1, column=0, columnspan=columnas)
+    contador_banderas = tk.Label(board_window, text=f"Banderas: {banderas_puestas}")
+    contador_banderas.grid(row=0, column=1, sticky="w", padx=5, pady=5)
 
-    # Cronometro
+    # Cronómetro
     cronometro = tk.Label(board_window, text="Tiempo: 00:00")
-    cronometro.grid(row=2, column=0, columnspan=columnas)
+    cronometro.grid(row=0, column=2, sticky="w", padx=5, pady=5)
     tiempo_inicio = time.time()
     actualizar_cronometro(cronometro, tiempo_inicio, board_window)
 
     # Reiniciar juego y cerrar la ventana actual
     reiniciar = tk.Button(board_window, text="Reiniciar", command=iniciar_juego)
-    reiniciar.grid(row=3, column=0, columnspan=columnas)
+    reiniciar.grid(row=0, column=3, sticky="w", padx=5, pady=5)
 
     # Agregar espacio entre el tablero y la interfaz
-    tk.Label(board_window, text=" ").grid(row=4)   
+    tk.Label(board_window, text=" ").grid(row=1, columnspan=4, pady=5)
 
 def actualizar_cronometro(cronometro, tiempo_inicio, board_window):
-        cronometro.config(text=time.strftime("Tiempo: %H:%M:%S", time.gmtime(time.time() - tiempo_inicio)))
-        board_window.after(1000, actualizar_cronometro)
+    cronometro.config(text=time.strftime("Tiempo: %H:%M:%S", time.gmtime(time.time() - tiempo_inicio)))
+    board_window.after(1000, lambda: actualizar_cronometro(cronometro, tiempo_inicio, board_window))
         
 def iniciar_juego():
     filas = int(entry_filas.get())
@@ -97,7 +118,7 @@ def iniciar_juego():
     buttons = crear_botones_tablero(tablero, board_window)
 
     # Interfaz del tablero
-    interfaz_tablero(tablero, board_window, filas, columnas, num_minas)
+    interfaz_tablero(tablero, board_window, alto_ventana, ancho_ventana, num_minas)
 
 if __name__ == "__main__":
     # Crear ventana
