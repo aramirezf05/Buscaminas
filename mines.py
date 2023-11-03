@@ -1,6 +1,13 @@
 import tkinter as tk
 import time
 import random
+from PIL import Image, ImageTk
+
+def cargar_imagen(ruta, ancho, alto):
+    imagen = Image.open(ruta)
+    imagen = imagen.resize((ancho, alto), Image.ANTIALIAS)
+    imagen = ImageTk.PhotoImage(imagen)
+    return imagen
 
 def contar_minas_alrededor(tablero, x, y):
     count = 0
@@ -10,45 +17,55 @@ def contar_minas_alrededor(tablero, x, y):
                 count += 1
     return count
 
+def contadorBanderas(label, simbol):
+    global banderas_puestas
+    if simbol == "+":
+        banderas_puestas += 1
+    elif simbol == "-":
+        banderas_puestas -= 1
+    label.config(text=f"Banderas: {banderas_puestas}")
+
 def revelar_celda(tablero, buttons, x, y, event):
+    #imagenBomba = cargar_imagen("utils/bomba.jpg", 5, 2)
+    #imagenDesactivarBomba = cargar_imagen("utils/desactivarBomba.jpg", 5, 52)
+
     if event == 'left':  # Si el evento es un clic izquierdo
         if buttons[x][y]['text'] == "B":  # Verificar si hay una bandera
             return  # No hacer nada si hay una bandera en la celda
 
         if tablero[x][y] == '*':
             print("¡Has encontrado una mina!")
+            #buttons[x][y].config(image=imagenBomba)
         else:
             minas_cercanas = contar_minas_alrededor(tablero, x, y)
             buttons[x][y].config(text=str(minas_cercanas))
     elif event == 'right':  # Si el evento es un clic derecho
-        if buttons[x][y]['text'] == "X":  # Si la celda está sin revelar, coloca una bandera
-            buttons[x][y].config(text="B")
-        elif buttons[x][y]['text'] == "B":  # Si la celda tiene una bandera, quítala
-            buttons[x][y].config(text="X")
+        if buttons[x][y]['text'] == '':  # Si la celda está sin revelar, coloca una bandera
+            buttons[x][y].config(text='B')
+            contadorBanderas(contador_banderas, "+")
+        elif buttons[x][y]['text'] == 'B':  # Si la celda tiene una bandera, quítala
+            buttons[x][y].config(text='')
+            contadorBanderas(contador_banderas, "-")
 
 def crear_botones_tablero(tablero, ventana):
     buttons = []
-    
-    def left_click_handler(event, x, y):
+
+    # Funciones para manejar los clics en los botones
+    def left_click_handler(x, y):
         revelar_celda(tablero, buttons, x, y, 'left')
     
-    def right_click_handler(event, x, y):
+    def right_click_handler(x, y):
         revelar_celda(tablero, buttons, x, y, 'right')
     
     for i in range(len(tablero)):
         row = []
         for j in range(len(tablero[i])):
-            btn = tk.Button(ventana, width=3, height=1)
-            btn.grid(row=i + 1, column=j, sticky="nsew")
+            btn = tk.Button(ventana, width=5, height=2)
+            btn.grid(row=i+1, column=j, sticky="nsew")
             row.append(btn)
-            btn.bind('<Button-1>', lambda e, x=i, y=j: left_click_handler(e, x, y), add='+')
-            btn.bind('<Button-3>', lambda e, x=i, y=j: right_click_handler(e, x, y), add='+')
-
+            btn.bind('<Button-1>', lambda e, x=i, y=j: left_click_handler(x, y), add='+')
+            btn.bind('<Button-3>', lambda e, x=i, y=j: right_click_handler(x, y), add='+')
         buttons.append(row)
-
-    # Configurar filas adicionales para dar espacio arriba del tablero
-    for _ in range(1):
-        tk.Grid.rowconfigure(ventana, len(tablero) + 1, weight=1)
 
     return buttons
 
@@ -67,31 +84,35 @@ def crear_tablero(filas, columnas, minas):
     return tablero
 
 
-def actualizar_contador_banderas(label, cantidad_banderas):
-    label.config(text=f"Banderas: {cantidad_banderas}")
-
-def interfaz_tablero(tablero, board_window, filas, columnas, num_minas):
+def interfaz_tablero(tablero, board_window, alto_ventana, ancho_ventana, num_minas):
     # Contador de minas restantes
     contador_minas = tk.Label(board_window, text=f"Minas restantes: {num_minas}")
-    contador_minas.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+    contador_minas.grid(row=0, column=0)
 
     # Contador de banderas puestas
-    banderas_puestas = 0  # Inicialmente no hay banderas puestas
+    global banderas_puestas  # Inicialmente no hay banderas puestas
+    banderas_puestas = 0
+    global contador_banderas
     contador_banderas = tk.Label(board_window, text=f"Banderas: {banderas_puestas}")
-    contador_banderas.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+    contador_banderas.grid(row=0, column=1)
 
     # Cronómetro
     cronometro = tk.Label(board_window, text="Tiempo: 00:00")
-    cronometro.grid(row=0, column=2, sticky="w", padx=5, pady=5)
+    cronometro.grid(row=0, column=2)
     tiempo_inicio = time.time()
     actualizar_cronometro(cronometro, tiempo_inicio, board_window)
 
     # Reiniciar juego y cerrar la ventana actual
     reiniciar = tk.Button(board_window, text="Reiniciar", command=iniciar_juego)
-    reiniciar.grid(row=0, column=3, sticky="w", padx=5, pady=5)
+    reiniciar.grid(row=0, column=3)
 
     # Agregar espacio entre el tablero y la interfaz
     tk.Label(board_window, text=" ").grid(row=1, columnspan=4, pady=5)
+
+    buttons_frame = tk.Frame(board_window)
+    buttons_frame.grid(row=1, column=0, columnspan=ancho_ventana, pady=5)
+
+    buttons = crear_botones_tablero(tablero, buttons_frame)
 
 def actualizar_cronometro(cronometro, tiempo_inicio, board_window):
     cronometro.config(text=time.strftime("Tiempo: %H:%M:%S", time.gmtime(time.time() - tiempo_inicio)))
@@ -113,9 +134,6 @@ def iniciar_juego():
     ancho_ventana = tamano * columnas
     alto_ventana = tamano * filas
     board_window.geometry(str(ancho_ventana) + "x" + str(alto_ventana))
-
-    # Crear botones
-    buttons = crear_botones_tablero(tablero, board_window)
 
     # Interfaz del tablero
     interfaz_tablero(tablero, board_window, alto_ventana, ancho_ventana, num_minas)
